@@ -1,0 +1,86 @@
+<div style="font-family: 'Helvetica', 'Arial', sans-serif; padding: 30px; line-height: 1.4; color: #111; font-size: 11px;">
+  <!-- Header -->
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h1 style="margin: 0; font-size: 22px; font-weight: bold; color: #1e1b4b;">{{name}}</h1>
+    <h2 style="margin: 4px 0 8px; font-size: 14px; font-weight: 600; color: #4f46e5;">{{role}}</h2>
+    <div style="font-size: 10px; color: #4b5563; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+      {{#if email}}<span><a href="mailto:{{email}}" style="color: #4f46e5; text-decoration: none;">{{email}}</a></span>{{/if}}
+      {{#if phone}}<span>{{phone}}</span>{{/if}}
+      {{#if linkedin}}<span><a href="{{linkedin}}" target="_blank" style="color: #4f46e5; text-decoration: none;">LinkedIn</a></span>{{/if}}
+      {{#if github}}<span><a href="{{github}}" target="_blank" style="color: #4f46e5; text-decoration: none;">GitHub</a></span>{{/if}}
+      {{#if portfolio}}<span><a href="{{portfolio}}" target="_blank" style="color: #4f46e5; text-decoration: none;">Portfolio</a></span>{{/if}}
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div style="margin-bottom: 15px;">
+    <h3 style="margin: 0 0 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Professional Summary</h3>
+    <p style="margin: 4px 0 0; font-size: 10px; text-align: justify; color: #374151;">{{summary}}</p>
+  </div>
+
+  <!-- Skills -->
+  <div style="margin-bottom: 15px;">
+    <h3 style="margin: 0 0 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Technical Skills</h3>
+    <div style="margin-top: 4px;">
+      {{#each skills}}
+        <p style="margin: 2px 0; font-size: 10px; color: #374151;"><strong style="color: #1f2937;">{{@key}}:</strong> {{this}}</p>
+      {{/each}}
+    </div>
+  </div>
+
+  <!-- Experience -->
+  <div style="margin-bottom: 15px;">
+    <h3 style="margin: 0 0 6px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Experience</h3>
+    {{#each experience}}
+      <div style="margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-weight: bold; font-size: 10.5px; color: #111827;">{{this.title}} — <span style="font-weight: 600; color: #4f46e5;">{{this.company}}</span></span>
+          <span style="font-size: 9.5px; color: #6b7280; font-weight: 500;">{{this.date}}</span>
+        </div>
+        <ul style="margin: 3px 0 0; padding-left: 15px;">
+          {{#each this.bullets}}
+            <li style="font-size: 9.5px; color: #374151; margin-bottom: 2px;">{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/each}}
+  </div>
+
+  <!-- Projects -->
+  <div style="margin-bottom: 15px;">
+    <h3 style="margin: 0 0 6px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Projects</h3>
+    {{#each projects}}
+      <div style="margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-weight: bold; font-size: 10.5px; color: #111827;">
+            {{this.name}}
+            {{#if this.link}}
+              (<a href="{{this.link}}" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: normal;">Link</a>)
+            {{/if}}
+          </span>
+          <span style="font-size: 9.5px; color: #6b7280; font-weight: 500;">{{this.date}}</span>
+        </div>
+        <ul style="margin: 3px 0 0; padding-left: 15px;">
+          {{#each this.bullets}}
+            <li style="font-size: 9.5px; color: #374151; margin-bottom: 2px;">{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/each}}
+  </div>
+
+  <!-- Education -->
+  <div style="margin-bottom: 10px;">
+    <h3 style="margin: 0 0 6px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Education</h3>
+    {{#each education}}
+      <div style="margin-bottom: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-weight: bold; font-size: 10.5px; color: #111827;">{{this.degree}}</span>
+          <span style="font-size: 9.5px; color: #6b7280; font-weight: 500;">{{this.date}}</span>
+        </div>
+        <p style="margin: 1px 0 0; font-size: 9.5px; color: #4b5563;">{{this.institution}}</p>
+      </div>
+    {{/each}}
+  </div>
+
+</div>
