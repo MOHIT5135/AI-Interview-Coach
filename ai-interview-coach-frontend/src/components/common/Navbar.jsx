@@ -60,6 +60,13 @@ const Navbar = () => {
                   <FileText className="h-4 w-4" />
                   <span>ATS</span>
                 </Link>
+                <Link
+                  to="/resume-optimizer"
+                  className="flex items-center space-x-1 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md font-medium text-sm transition"
+                >
+                  <Wand2 className="h-4 w-4" />
+                  <span>Optimizer</span>
+                </Link>
                 <div className="flex items-center space-x-3 pl-4 border-l border-gray-200 dark:border-gray-700">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Hi, {user.name}

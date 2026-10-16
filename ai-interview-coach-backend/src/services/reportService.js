@@ -1,11 +1,10 @@
 const PDFDocument = require('pdfkit');
-const { PDFDocument: PDFLibDoc } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
 
 const cleanText = (text) => {
   if (!text) return '';
-  return String(text).replace(/[^\x20-\x7E\n\t]/g, ' ').trim();
+  return String(text).replace(/[\r\n]+/g, ' ').replace(/[^\x20-\x7E\t]/g, ' ').trim();
 };
 
 const safeNum = (val) => {
@@ -163,25 +162,4 @@ const generatePDFReport = async (sessionId, sessionData, qaPairs, downloadDir = 
   });
 };
 
-const generateOptimizedResumePDF = async (originalPdfBuffer, optimizedText, downloadDir = './reports') => {
-  if (!fs.existsSync(downloadDir)) {
-    fs.mkdirSync(downloadDir, { recursive: true });
-  }
-
-  const pdfDoc = await PDFLibDoc.load(originalPdfBuffer);
-  const optimizedPage = pdfDoc.addPage();
-  optimizedPage.drawText(cleanText(optimizedText), {
-    x: 50,
-    y: 700,
-    size: 11,
-  });
-
-  const pdfBytes = await pdfDoc.save();
-  const filename = `Optimized_Resume_${Date.now()}.pdf`;
-  const filepath = path.join(downloadDir, filename);
-
-  fs.writeFileSync(filepath, pdfBytes);
-  return filepath;
-};
-
-module.exports = { generatePDFReport, generateOptimizedResumePDF };
+module.exports = { generatePDFReport };

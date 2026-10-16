@@ -1,6 +1,12 @@
 const express = require('express');
 const multer = require('multer');
-const { checkATS, suggestEdits, downloadOptimizedPDF, finalizePDF } = require('../controllers/resumeController');
+
+const {
+  handleAnalyzeAndSuggest,
+  handleGenerateFinalPDF,
+  recordAlias
+} = require('../controllers/resumeController');
+
 const authMiddleware = require('../middleware/authMiddleware');
 
 const upload = multer({
@@ -9,9 +15,14 @@ const upload = multer({
 });
 const router = express.Router();
 
-router.post('/check', authMiddleware, upload.single('resume'), checkATS);
-router.post('/suggest-edits', authMiddleware, upload.single('resume'), suggestEdits);
-router.post('/optimize-pdf', authMiddleware, upload.single('resume'), downloadOptimizedPDF);
-router.post('/finalize-pdf', authMiddleware, finalizePDF);
+// ATS Check & Suggestion Endpoints (supporting both /check and /analyze-and-suggest)
+router.post('/check', authMiddleware, upload.single('resume'), handleAnalyzeAndSuggest);
+router.post('/analyze-and-suggest', authMiddleware, upload.single('resume'), handleAnalyzeAndSuggest);
+
+// Final PDF Generation
+router.post('/generate-final-pdf', authMiddleware, handleGenerateFinalPDF);
+
+// Keep alias learner for user-specific tech acronyms
+router.post('/alias', authMiddleware, recordAlias);
 
 module.exports = router;

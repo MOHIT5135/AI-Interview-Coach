@@ -12,8 +12,9 @@ const interviewSessionSchema = new mongoose.Schema(
     strengths: [{ type: String }],
     weaknesses: [{ type: String }],
     summary: { type: String },
-    resumeText: { type: String, default: '' }, // Store resume for reference
-    resumeSummary: { type: String, default: '' }, // Concise ~150 word technical summary
+    resumeText: { type: String, default: '' },
+    resumeSummary: { type: String, default: '' },
+    plannedTopics: [{ type: String }], // 5 distinct planned topics for the 5 questions
     startedAt: { type: Date, default: Date.now },
     completedAt: { type: Date },
   },

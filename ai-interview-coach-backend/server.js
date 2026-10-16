@@ -8,7 +8,13 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL || 'https://your-frontend-domain.vercel.app'
+    : 'http://localhost:5173',
+  credentials: true,
+  exposedHeaders: ['Content-Disposition']
+}));
 app.use(express.json());
 
 // Routes

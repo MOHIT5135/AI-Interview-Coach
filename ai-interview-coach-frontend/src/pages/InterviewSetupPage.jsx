@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import { Code, Server, Layers, Database, Cpu, Shield, ArrowRight, Upload, Loader2, X } from 'lucide-react';
+import axiosClient from '../api/axiosClient';
 
 const ROLES = [
   { id: 'Frontend Developer', name: 'Frontend Developer', icon: Code, desc: 'React, TypeScript, CSS, Performance' },
@@ -38,28 +39,20 @@ const InterviewSetupPage = () => {
         formData.append('resume', resumeFile);
       }
 
-      const token = JSON.parse(localStorage.getItem('userInfo'))?.token;
-      const res = await fetch('http://localhost:5000/api/interview/start', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to start');
+      // Clean, secure, and environment-agnostic
+      const res = await axiosClient.post('/interview/start', formData);
 
       navigate('/interview', {
         state: {
           role: selectedRole,
           difficulty: selectedDifficulty,
-          initialSessionData: data,
+          initialSessionData: res.data, // Access .data for Axios
         },
       });
     } catch (err) {
       console.error('Failed to start interview:', err);
-      alert('Failed to start interview session');
+      alert(err.response?.data?.error || 'Failed to start interview session');
+    } finally {
       setLoading(false);
     }
   };
@@ -127,67 +120,57 @@ const InterviewSetupPage = () => {
           </div>
         </div>
 
-        {/* Optional Resume Upload */}
+        {/* Resume Upload */}
         <div className="mb-10">
-          <label className="block text-lg font-bold text-gray-900 dark:text-white mb-4">3. Upload Resume (Optional - PDF)</label>
+          <label className="block text-lg font-bold text-gray-900 dark:text-white mb-4">3. Upload Resume (Optional)</label>
           <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-white dark:bg-gray-900 text-center hover:border-indigo-500 dark:hover:border-indigo-400 cursor-pointer transition"
+            onClick={() => !resumeFile && fileInputRef.current?.click()}
+            className={`border-2 border-dashed ${resumeFile ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40' : 'border-gray-300 dark:border-gray-700'} rounded-2xl p-6 text-center cursor-pointer transition relative`}
           >
-            <input
-              type="file"
-              accept=".pdf"
-              ref={fileInputRef}
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <div className="flex flex-col items-center">
-              <Upload className="h-10 w-10 text-indigo-600 dark:text-indigo-400 mb-2" />
-              {resumeFile ? (
-                <div className="flex items-center space-x-2 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-4 py-2 rounded-xl font-semibold border border-indigo-100 dark:border-indigo-800">
-                  <span>{resumeFile.name}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setResumeFile(null);
-                      if (fileInputRef.current) fileInputRef.current.value = '';
-                    }}
-                    className="text-indigo-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+            <input type="file" accept=".pdf" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+            {resumeFile ? (
+              <div className="flex items-center justify-between px-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/55 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                    <Upload className="h-5 w-5" />
+                  </div>
+                  <span className="font-medium text-gray-900 dark:text-white">{resumeFile.name}</span>
                 </div>
-              ) : (
-                <>
-                  <span className="font-semibold text-gray-800 dark:text-gray-200">Click to upload your resume PDF</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">AI will tailor questions to your experience</span>
-                </>
-              )}
-            </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setResumeFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition"
+                >
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                <p className="font-medium text-gray-700 dark:text-gray-300">Click to upload PDF resume</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">We'll use your skills & projects to tailor interview questions</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Start Button */}
-        <div className="flex justify-end">
-          <button
-            onClick={handleStart}
-            disabled={loading}
-            className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold px-8 py-4 rounded-xl shadow-lg transition text-lg cursor-pointer"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Preparing Interview...</span>
-              </>
-            ) : (
-              <>
-                <span>Start Interview</span>
-                <ArrowRight className="h-5 w-5" />
-              </>
-            )}
-          </button>
-        </div>
+        {/* Action Button */}
+        <button
+          onClick={handleStart}
+          disabled={loading}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Initializing Interview...</span>
+            </>
+          ) : (
+            <>
+              <span>Start Interview Session</span>
+              <ArrowRight className="h-5 w-5" />
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

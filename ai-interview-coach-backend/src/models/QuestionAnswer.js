@@ -6,6 +6,7 @@ const questionAnswerSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     questionNumber: { type: Number, required: true },
     question: { type: String, required: true },
+    topic: { type: String, default: '' },
     userAnswer: { type: String, required: true },
     score: { type: Number, required: true },
     goodPoints: [{ type: String }],

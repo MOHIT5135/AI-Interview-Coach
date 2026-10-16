@@ -21,15 +21,13 @@ const ATSCheckerPage = () => {
     }
 
     setLoading(true);
-    setResults(null); // Clear previous results
+    setResults(null);
     try {
       const formData = new FormData();
       formData.append('resume', resumeFile);
       formData.append('jobDescription', jobDescription);
 
-      const res = await axiosClient.post('/resume/check', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await axiosClient.post('/resume/analyze-and-suggest', formData);
       setResults(res.data);
       setAtsFindings(res.data);
       useResumeStore.getState().setSelectedKeywords(res.data.missingKeywords || []);
@@ -39,6 +37,22 @@ const ATSCheckerPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoToOptimizer = () => {
+    // Persist to sessionStorage so data survives page refresh
+    sessionStorage.setItem('active_ats_analysis', JSON.stringify({
+      preLoadedAnalysis: results,
+      targetRole: jobDescription
+    }));
+
+    navigate('/resume-optimizer', {
+      state: {
+        resumeFile,
+        preLoadedAnalysis: results,
+        targetRole: jobDescription
+      }
+    });
   };
 
   return (
@@ -108,7 +122,9 @@ const ATSCheckerPage = () => {
                 {results.matchedKeywords?.length > 0 && (
                   <div>
                     <h4 className="font-bold text-gray-900 dark:text-white">Matched Keywords:</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{results.matchedKeywords.join(', ')}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      {results.matchedKeywords.map(k => typeof k === 'string' ? k : k.keyword).join(', ')}
+                    </p>
                   </div>
                 )}
                 {results.formattingIssues?.length > 0 && (
@@ -129,7 +145,7 @@ const ATSCheckerPage = () => {
                 </div>
 
                 <button
-                  onClick={() => navigate('/resume-optimizer', { state: { resumeFile } })}
+                  onClick={handleGoToOptimizer}
                   className="w-full mt-6 flex items-center justify-center space-x-2 bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition cursor-pointer"
                 >
                   <Wand2 className="h-5 w-5" />
