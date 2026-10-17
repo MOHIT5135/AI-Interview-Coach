@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
-import { Code, Server, Layers, Database, Cpu, Shield, ArrowRight, Upload, Loader2, X } from 'lucide-react';
+import { Terminal, Code, Server, Layers, Database, Cpu, Shield, ArrowRight, Upload, Loader2, X } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 
 const ROLES = [
+  { id: 'Software Developer', name: 'Software Developer', icon: Terminal, desc: 'DSA, OOP, Algorithms, Core CS' },
   { id: 'Frontend Developer', name: 'Frontend Developer', icon: Code, desc: 'React, TypeScript, CSS, Performance' },
   { id: 'Backend Developer', name: 'Backend Developer', icon: Server, desc: 'Node.js, Express, Databases, APIs' },
   { id: 'Full Stack Developer', name: 'Full Stack Developer', icon: Layers, desc: 'End-to-end web architecture & DBs' },
@@ -13,10 +14,26 @@ const ROLES = [
   { id: 'System Design', name: 'System Design', icon: Shield, desc: 'Scalability, Load Balancing, Microservices' },
 ];
 
-const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+const DIFFICULTIES = [
+  {
+    id: 'Easy',
+    name: 'Easy',
+    desc: 'Basic to intermediate (easy) concepts',
+  },
+  {
+    id: 'Medium',
+    name: 'Medium',
+    desc: 'Intermediate to vital fundamental concepts',
+  },
+  {
+    id: 'Hard',
+    name: 'Hard',
+    desc: 'Intermediate (hard) to advanced concepts',
+  },
+];
 
 const InterviewSetupPage = () => {
-  const [selectedRole, setSelectedRole] = useState('Frontend Developer');
+  const [selectedRole, setSelectedRole] = useState('Software Developer');
   const [selectedDifficulty, setSelectedDifficulty] = useState('Medium');
   const [resumeFile, setResumeFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,14 +56,13 @@ const InterviewSetupPage = () => {
         formData.append('resume', resumeFile);
       }
 
-      // Clean, secure, and environment-agnostic
       const res = await axiosClient.post('/interview/start', formData);
 
       navigate('/interview', {
         state: {
           role: selectedRole,
           difficulty: selectedDifficulty,
-          initialSessionData: res.data, // Access .data for Axios
+          initialSessionData: res.data,
         },
       });
     } catch (err) {
@@ -100,20 +116,23 @@ const InterviewSetupPage = () => {
         {/* Difficulty Selection */}
         <div className="mb-8">
           <label className="block text-lg font-bold text-gray-900 dark:text-white mb-4">2. Select Difficulty</label>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {DIFFICULTIES.map((diff) => {
-              const isSelected = selectedDifficulty === diff;
+              const isSelected = selectedDifficulty === diff.id;
               return (
                 <div
-                  key={diff}
-                  onClick={() => setSelectedDifficulty(diff)}
-                  className={`p-4 rounded-xl border-2 cursor-pointer text-center font-bold transition ${
+                  key={diff.id}
+                  onClick={() => setSelectedDifficulty(diff.id)}
+                  className={`p-4 rounded-xl border-2 cursor-pointer text-center transition flex flex-col justify-center items-center ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
                       : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700'
                   }`}
                 >
-                  {diff}
+                  <span className="font-bold text-base">{diff.name}</span>
+                  <span className={`text-xs mt-1 leading-snug font-normal ${isSelected ? 'text-indigo-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {diff.desc}
+                  </span>
                 </div>
               );
             })}

@@ -1,6 +1,12 @@
 const InterviewSession = require('../models/InterviewSession');
 const QuestionAnswer = require('../models/QuestionAnswer');
-const { generateFirstQuestion, evaluateAndNext, generateSummary, summarizeResume } = require('../services/aiService');
+const {
+  generateFirstQuestion,
+  evaluateAndNext,
+  generateSummary,
+  summarizeResume,
+  getDefaultTopicsForRole
+} = require('../services/aiService');
 const { parsePdfBuffer } = require('../utils/pdfUtils');
 
 const startInterview = async (req, res) => {
@@ -12,13 +18,7 @@ const startInterview = async (req, res) => {
 
     let resumeText = '';
     let resumeSummary = '';
-    let plannedTopics = [
-      'React Component Design',
-      'API Integration & Async Operations',
-      'Frontend State Management',
-      'UI Performance & Optimization',
-      'Version Control & Collaboration'
-    ];
+    let plannedTopics = getDefaultTopicsForRole(role);
 
     if (req.file) {
       try {
@@ -90,16 +90,23 @@ const submitAnswer = async (req, res) => {
     const isCopied = aWords.length > 0 && (overlapCount / aWords.length > 0.7);
 
     let evaluation;
-    const nextTopic = session.plannedTopics && session.plannedTopics[questionNumber] ? session.plannedTopics[questionNumber] : 'General Technical Follow-up';
+    const nextTopic = session.plannedTopics && session.plannedTopics[questionNumber]
+      ? session.plannedTopics[questionNumber]
+      : 'General Technical Follow-up';
 
     if (wordCount < 4 || isCopied) {
+      let nextQ = null;
+      if (questionNumber < session.totalQuestions) {
+        nextQ = await generateFirstQuestion(session.role, session.difficulty, session.resumeSummary || '', nextTopic);
+      }
+
       evaluation = {
         score: 1,
         topic: currentQuestion.split('?')[0].slice(0, 40),
         goodPoints: [],
         missingPoints: ['Question was not answered or answer was just copied text.'],
         idealAnswerHint: 'Provide a complete technical explanation addressing the core question requirements.',
-        nextQuestion: questionNumber < session.totalQuestions ? (session.plannedTopics[questionNumber] || 'Next technical topic') : null
+        nextQuestion: nextQ
       };
 
       await QuestionAnswer.create({
@@ -150,6 +157,7 @@ const submitAnswer = async (req, res) => {
 
       const allQA = await QuestionAnswer.find({ sessionId: session._id }).sort({ questionNumber: 1 });
       const summaryResult = await generateSummary(session.role, session.difficulty, allQA);
+
       session.overallScore = summaryResult.overallScore;
       session.strengths = summaryResult.strengths;
       session.weaknesses = summaryResult.weaknesses;
