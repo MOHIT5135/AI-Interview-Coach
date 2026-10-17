@@ -27,7 +27,7 @@ const ATSCheckerPage = () => {
       formData.append('resume', resumeFile);
       formData.append('jobDescription', jobDescription);
 
-      const res = await axiosClient.post('/resume/analyze-and-suggest', formData);
+      const res = await axiosClient.post('/resume/check', formData);
       setResults(res.data);
       setAtsFindings(res.data);
       useResumeStore.getState().setSelectedKeywords(res.data.missingKeywords || []);
@@ -40,20 +40,16 @@ const ATSCheckerPage = () => {
   };
 
   const handleGoToOptimizer = () => {
-    // Persist to sessionStorage so data survives page refresh
-    sessionStorage.setItem('active_ats_analysis', JSON.stringify({
-      preLoadedAnalysis: results,
-      targetRole: jobDescription
-    }));
-
-    navigate('/resume-optimizer', {
-      state: {
-        resumeFile,
-        preLoadedAnalysis: results,
-        targetRole: jobDescription
-      }
-    });
-  };
+  sessionStorage.removeItem('active_ats_analysis'); // Reset cache
+  navigate('/resume-optimizer', {
+    state: {
+      resumeFile,
+      originalResume: results.originalResume,
+      missingKeywords: results.missingKeywords || []
+      // targetRole is intentionally omitted so the field starts EMPTY!
+    }
+  });
+};
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white transition-colors duration-200">

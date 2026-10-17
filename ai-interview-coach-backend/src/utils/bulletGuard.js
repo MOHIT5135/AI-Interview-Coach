@@ -55,11 +55,24 @@ const stripEdges = (w) => w
   .replace(/\.$/, '');
 
 // Tokens that look like technologies, products, or proper nouns (language-agnostic shape rules).
-const ACTION_VERBS = new Set([
+const UNIVERSAL_ACTION_VERBS = new Set([
+  // Healthcare & Clinical
+  'administered', 'assessed', 'monitored', 'triaged', 'stabilized', 'treated', 'counseled',
+  'coordinated', 'rehabilitated', 'documented', 'discharged', 'catheterized', 'titrated',
+  'collaborated', 'facilitated', 'advocated', 'diagnosed', 'assisted', 'sterilized',
+  
+  // Hospitality, Operations & Service
+  'hosted', 'welcomed', 'managed', 'inspected', 'supervised', 'streamlined', 'scheduled',
+  'resolved', 'served', 'arranged', 'boosted', 'trained', 'procured', 'allocated', 'curated',
+  
+  // Engineering, Technical & Architecture
   'architected', 'engineered', 'spearheaded', 'implemented', 'optimized', 'developed',
-  'designed', 'refactored', 'streamlined', 'orchestrated', 'deployed', 'automated',
-  'accelerated', 'established', 'integrated', 'formulated', 'constructed', 'enhanced',
-  'executed', 'eliminated', 'scaled', 'reduced', 'increased', 'standardized'
+  'designed', 'refactored', 'orchestrated', 'deployed', 'automated', 'accelerated',
+  'established', 'integrated', 'constructed', 'enhanced', 'executed', 'eliminated', 'scaled',
+  
+  // Management, Leadership & Finance
+  'directed', 'led', 'negotiated', 'audited', 'formulated', 'reduced', 'increased',
+  'standardized', 'generated', 'analyzed', 'budgeted', 'oversaw', 'spearheaded', 'delivered'
 ]);
 
 const termLikeTokens = (text) => {
@@ -68,7 +81,9 @@ const termLikeTokens = (text) => {
   raw.forEach((token, idx) => {
     const w = stripEdges(token);
     if (!w || /^[\d.,%≈~+\-–x]+[a-z%]*$/i.test(w)) return;
-    if (ACTION_VERBS.has(w.toLowerCase())) return; // Whitelist check
+    
+    // Universal verb exemption
+    if (UNIVERSAL_ACTION_VERBS.has(w.toLowerCase())) return;
 
     const prev = idx > 0 ? raw[idx - 1] : '';
     const sentenceStart = idx === 0 || /[.!?:;]$/.test(prev);

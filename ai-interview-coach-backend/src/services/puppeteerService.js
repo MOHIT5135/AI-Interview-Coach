@@ -1,3 +1,4 @@
+'use strict';
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
@@ -21,7 +22,7 @@ const renderResumeToPDF = async (resumeData, outputPath) => {
       path: outputPath,
       format: 'A4',
       printBackground: true,
-      margin: { top: '0.4in', bottom: '0.4in', left: '0.4in', right: '0.4in' }
+      margin: { top: '0in', bottom: '0in', left: '0in', right: '0in' }
     });
   } finally {
     if (browser) await browser.close();

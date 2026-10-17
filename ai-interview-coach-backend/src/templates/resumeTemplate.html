@@ -1,108 +1,207 @@
-<div style="font-family: 'Helvetica', 'Arial', sans-serif; padding: 30px; line-height: 1.4; color: #111; font-size: 11px;">
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 1.1cm 1.3cm;
+  }
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: "Latin Modern Roman", "Computer Modern", "CMU Serif", "Times New Roman", Times, serif;
+    font-size: 9.5pt;
+    line-height: 1.28;
+    color: #000000;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+  }
+  a {
+    color: #143c78;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 4pt;
+  }
+  .header h1 {
+    font-size: 16pt;
+    font-weight: bold;
+    letter-spacing: 0.5pt;
+    margin: 0 0 1pt 0;
+    color: #000000;
+    text-transform: uppercase;
+  }
+  .header .role {
+    font-size: 9.5pt;
+    font-weight: normal;
+    margin: 1pt 0 2pt 0;
+    color: #000000;
+  }
+  .header .contact-line {
+    font-size: 9pt;
+    color: #000000;
+    line-height: 1.35;
+  }
+  .section-title {
+    font-size: 11pt;
+    font-weight: bold;
+    color: #000000;
+    margin: 6.5pt 0 1.5pt 0;
+    padding-bottom: 1pt;
+    border-bottom: 0.8pt solid #000000;
+    text-transform: capitalize;
+  }
+  .summary-text {
+    font-size: 9.5pt;
+    line-height: 1.28;
+    text-align: justify;
+    margin: 1.5pt 0 3.5pt 0;
+    color: #000000;
+  }
+  ul.compact-list {
+    margin: 1.5pt 0 3pt 0;
+    padding-left: 13pt;
+    list-style-type: disc;
+  }
+  ul.compact-list li {
+    font-size: 9.5pt;
+    line-height: 1.26;
+    margin-bottom: 1.2pt;
+    text-align: justify;
+    color: #000000;
+  }
+  .entry-block {
+    margin-bottom: 3.5pt;
+  }
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 9.5pt;
+  }
+  .entry-title {
+    font-weight: bold;
+    color: #000000;
+  }
+  .entry-date {
+    font-weight: bold;
+    color: #000000;
+  }
+  .entry-sub {
+    font-size: 9pt;
+    margin-top: 0.5pt;
+    margin-bottom: 1.5pt;
+    color: #000000;
+  }
+  .entry-sub .tech-stack {
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
   <!-- Header -->
-  <div style="text-align: center; margin-bottom: 20px;">
-    <h1 style="margin: 0; font-size: 22px; font-weight: bold; color: #1e1b4b;">{{name}}</h1>
-    <h2 style="margin: 4px 0 8px; font-size: 14px; font-weight: 600; color: #4f46e5;">{{role}}</h2>
-    <div style="font-size: 10px; color: #4b5563; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
-      {{#if email}}<span><a href="mailto:{{email}}" style="color: #4f46e5; text-decoration: none;">{{email}}</a></span>{{/if}}
-      {{#if phone}}<span>{{phone}}</span>{{/if}}
-      {{#if linkedin}}<span><a href="{{linkedin}}" target="_blank" style="color: #4f46e5; text-decoration: none;">LinkedIn</a></span>{{/if}}
-      {{#if github}}<span><a href="{{github}}" target="_blank" style="color: #4f46e5; text-decoration: none;">GitHub</a></span>{{/if}}
-      {{#if leetcode}}<span><a href="{{leetcode}}" target="_blank" style="color: #4f46e5; text-decoration: none;">LeetCode</a></span>{{/if}}
-      {{#if portfolio}}<span><a href="{{portfolio}}" target="_blank" style="color: #4f46e5; text-decoration: none;">Portfolio</a></span>{{/if}}
-      {{#unless email}}{{#unless phone}}{{#if contact}}<span>{{contact}}</span>{{/if}}{{/unless}}{{/unless}}
+  <div class="header">
+    <h1>{{name}}</h1>
+    {{#if role}}<div class="role">{{role}}</div>{{/if}}
+    <div class="contact-line">
+      {{#if phone}}<span>{{phone}}</span> | {{/if}}
+      {{#if email}}<span>{{email}}</span>{{/if}}
+      {{#if linkedin}} | <span><a href="{{linkedin}}" target="_blank">LinkedIn</a></span>{{/if}}
+      {{#if github}} | <span><a href="{{github}}" target="_blank">GitHub</a></span>{{/if}}
+      {{#if leetcode}} | <span><a href="{{leetcode}}" target="_blank">LeetCode</a></span>{{/if}}
+      {{#if portfolio}} | <span><a href="{{portfolio}}" target="_blank">Portfolio</a></span>{{/if}}
     </div>
   </div>
 
   <!-- Summary -->
   {{#if summary}}
-  <div style="margin-bottom: 15px;">
-    <h3 style="margin: 0 0 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Professional Summary</h3>
-    <p style="margin: 4px 0 0; font-size: 10px; text-align: justify; color: #374151;">{{summary}}</p>
-  </div>
+  <div class="section-title">Summary</div>
+  <div class="summary-text">{{summary}}</div>
   {{/if}}
 
   <!-- Skills -->
   {{#if skills}}
-  <div style="margin-bottom: 15px;">
-    <h3 style="margin: 0 0 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Technical Skills</h3>
-    <div style="margin-top: 4px;">
-      {{#each skills}}
-        <p style="margin: 2px 0; font-size: 10px; color: #374151;"><strong style="color: #1f2937;">{{@key}}:</strong> {{this}}</p>
-      {{/each}}
-    </div>
-  </div>
-  {{/if}}
-
-  <!-- Experience -->
-  {{#if experience}}
-  {{#if experience.length}}
-  <div style="margin-bottom: 15px;">
-    <h3 style="margin: 0 0 6px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Experience</h3>
-    {{#each experience}}
-      <div style="margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <span style="font-weight: bold; font-size: 10.5px; color: #111827;">{{this.title}} — <span style="font-weight: 600; color: #4f46e5;">{{this.company}}</span></span>
-          <span style="font-size: 9.5px; color: #6b7280; font-weight: 500;">{{this.date}}</span>
-        </div>
-        <ul style="margin: 3px 0 0; padding-left: 15px;">
-          {{#each this.bullets}}
-            <li style="font-size: 9.5px; color: #374151; margin-bottom: 2px;">{{this}}</li>
-          {{/each}}
-        </ul>
-      </div>
+  <div class="section-title">Skills</div>
+  <ul class="compact-list">
+    {{#each skills}}
+      <li><strong>{{@key}}:</strong> {{this}}</li>
     {{/each}}
-  </div>
-  {{/if}}
+  </ul>
   {{/if}}
 
   <!-- Projects -->
   {{#if projects}}
   {{#if projects.length}}
-  <div style="margin-bottom: 15px;">
-    <h3 style="margin: 0 0 6px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Projects</h3>
-    {{#each projects}}
-      <div style="margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <span style="font-weight: bold; font-size: 10.5px; color: #111827;">
-            {{this.name}}
-            {{#if this.link}}
-              (<a href="{{this.link}}" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: normal;">Link</a>)
-            {{else}}
-              {{#if this.links}}
-                (<span style="color: #4f46e5; font-weight: normal;">{{this.links}}</span>)
-              {{/if}}
-            {{/if}}
-          </span>
-          <span style="font-size: 9.5px; color: #6b7280; font-weight: 500;">{{this.date}}</span>
-        </div>
-        <ul style="margin: 3px 0 0; padding-left: 15px;">
-          {{#each this.bullets}}
-            <li style="font-size: 9.5px; color: #374151; margin-bottom: 2px;">{{this}}</li>
-          {{/each}}
-        </ul>
+  <div class="section-title">Projects</div>
+  {{#each projects}}
+    <div class="entry-block">
+      <div class="entry-header">
+        <span class="entry-title">{{this.name}}</span>
+        <span class="entry-date">{{this.date}}</span>
       </div>
-    {{/each}}
-  </div>
+      <div class="entry-sub">
+        {{#if this.techStack}}<span class="tech-stack">{{this.techStack}}</span>{{else}}{{#if this.links}}<span class="tech-stack">{{this.links}}</span>{{/if}}{{/if}}
+        {{#if this.link}}
+          (<a href="{{this.link}}" target="_blank"><strong>{{#if this.linkLabel}}{{this.linkLabel}}{{else}}Link{{/if}}</strong></a>)
+        {{/if}}
+      </div>
+      <ul class="compact-list">
+        {{#each this.bullets}}
+          <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+  {{/each}}
+  {{/if}}
+  {{/if}}
+
+  <!-- Experience -->
+  {{#if experience}}
+  {{#if experience.length}}
+  <div class="section-title">Experience</div>
+  {{#each experience}}
+    <div class="entry-block">
+      <div class="entry-header">
+        <span class="entry-title">{{this.title}}{{#if this.company}} — <span style="font-weight: normal;">{{this.company}}</span>{{/if}}</span>
+        <span class="entry-date">{{this.date}}</span>
+      </div>
+      <ul class="compact-list">
+        {{#each this.bullets}}
+          <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+  {{/each}}
   {{/if}}
   {{/if}}
 
   <!-- Education -->
   {{#if education}}
   {{#if education.length}}
-  <div style="margin-bottom: 10px;">
-    <h3 style="margin: 0 0 6px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e1b4b; border-bottom: 1.5px solid #4f46e5; padding-bottom: 2px; letter-spacing: 0.5px;">Education</h3>
-    {{#each education}}
-      <div style="margin-bottom: 4px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <span style="font-weight: bold; font-size: 10.5px; color: #111827;">{{this.degree}}</span>
-          <span style="font-size: 9.5px; color: #6b7280; font-weight: 500;">{{this.date}}</span>
-        </div>
-        <p style="margin: 1px 0 0; font-size: 9.5px; color: #4b5563;">{{this.institution}}</p>
+  <div class="section-title">Education</div>
+  {{#each education}}
+    <div style="margin-bottom: 2pt;">
+      <div class="entry-header">
+        <span class="entry-title">{{this.degree}}</span>
+        <span class="entry-date">{{this.date}}</span>
       </div>
-    {{/each}}
-  </div>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt; color: #000;">
+        <span>{{this.institution}}</span>
+        {{#if this.metric}}<span style="font-style: italic;">{{this.metric}}</span>{{/if}}
+      </div>
+    </div>
+  {{/each}}
   {{/if}}
   {{/if}}
 
-</div>
+</body>
+</html>

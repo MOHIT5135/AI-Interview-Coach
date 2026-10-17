@@ -179,23 +179,34 @@ const SessionSummaryPage = () => {
                   </span>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl mb-4">
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Your Answer:</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{qa.userAnswer}</p>
+               <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl mb-4 border border-gray-100 dark:border-gray-800">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5 tracking-wider">Your Answer:</p>
+                  {/* whitespace-pre-wrap preserves your exact line breaks, lists, and indentation */}
+                  <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed font-sans">{qa.userAnswer}</p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400 block mb-1">Good Points:</span>
-                    <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-400">
-                      {qa.goodPoints?.map((gp, i) => <li key={i}>{gp}</li>)}
-                    </ul>
+                  <div className="bg-emerald-50/80 dark:bg-emerald-950/40 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <span className="font-bold text-emerald-800 dark:text-emerald-300 text-sm flex items-center mb-2">
+                        <CheckCircle2 className="h-4 w-4 mr-1.5 text-emerald-600 dark:text-emerald-400" />
+                        What You Did Well:
+                      </span>
+                      <ul className="space-y-1.5 text-xs text-emerald-950 dark:text-emerald-200 list-disc pl-4 leading-relaxed">
+                        {qa.goodPoints?.map((gp, i) => <li key={i}>{gp}</li>)}
+                      </ul>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-bold text-amber-600 dark:text-amber-400 block mb-1">Missing / Gaps:</span>
-                    <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-400">
-                      {qa.missingPoints?.map((mp, i) => <li key={i}>{mp}</li>)}
-                    </ul>
+                  <div className="bg-rose-50/80 dark:bg-rose-950/40 p-4 rounded-xl border border-rose-200 dark:border-rose-800/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <span className="font-bold text-rose-800 dark:text-rose-300 text-sm flex items-center mb-2">
+                        <AlertCircle className="h-4 w-4 mr-1.5 text-rose-600 dark:text-rose-400" />
+                        Areas for Improvement (Gaps):
+                      </span>
+                      <ul className="space-y-1.5 text-xs text-rose-950 dark:text-rose-200 list-disc pl-4 leading-relaxed">
+                        {qa.missingPoints?.map((mp, i) => <li key={i}>{mp}</li>)}
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
