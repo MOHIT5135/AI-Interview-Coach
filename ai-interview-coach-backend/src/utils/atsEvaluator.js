@@ -1,4 +1,5 @@
-const axios = require('axios');
+'use strict';
+const { callGeminiAI, getModel: defaultGetModel } = require('../services/aiService');
 
 function escapeRegExp(string) {
   return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -12,7 +13,27 @@ function matchTermInText(term, text) {
   return regex.test(text);
 }
 
-const extractJDSkillsUniversal = async (rawJobDescription, callOpenRouterFn, getModelFn) => {
+// Safely resolves model whether it's a function, string, or undefined
+const resolveModel = (modelOrFn) => {
+  if (typeof modelOrFn === 'function') {
+    try {
+      const res = modelOrFn();
+      if (res) return String(res);
+    } catch (_) {}
+  }
+  if (typeof modelOrFn === 'string' && modelOrFn.trim()) {
+    return modelOrFn.trim();
+  }
+  if (typeof defaultGetModel === 'function') {
+    try {
+      const res = defaultGetModel();
+      if (res) return String(res);
+    } catch (_) {}
+  }
+  return 'gemini-2.0-flash';
+};
+
+const extractJDSkillsUniversal = async (rawJobDescription, callAiFn = callGeminiAI, modelOrFn = defaultGetModel) => {
   const universalJdPrompt = `
 Analyze this Job Description and extract the core required competencies, skills, tools, and certifications.
 For each requirement, provide an array of common industry synonyms or abbreviations.
@@ -31,7 +52,11 @@ JD: "${rawJobDescription}"
 `;
 
   try {
-    const response = await callOpenRouterFn(universalJdPrompt, 0, getModelFn(), 'ATS Universal Competencies Extraction');
+    const aiCaller = typeof callAiFn === 'function' ? callAiFn : callGeminiAI;
+    const resolvedModel = resolveModel(modelOrFn);
+
+    console.log(`\n[ATS Competency Extraction] Calling Google AI Studio with model: "${resolvedModel}"...`);
+    const response = await aiCaller(universalJdPrompt, 0, resolvedModel, 'ATS Universal Competencies Extraction');
     let cleaned = String(response || '').replace(/```json/g, '').replace(/```/g, '').trim();
     const firstBracket = cleaned.indexOf('[');
     const lastBracket = cleaned.lastIndexOf(']');
@@ -39,9 +64,11 @@ JD: "${rawJobDescription}"
       cleaned = cleaned.substring(firstBracket, lastBracket + 1);
     }
     const parsed = JSON.parse(cleaned);
-    return Array.isArray(parsed) ? parsed : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+    console.log(`[ATS Competency Extraction] Extracted ${list.length} competencies from JD.`);
+    return list;
   } catch (err) {
-    console.error('Failed to extract universal competencies dynamically:', err.message);
+    console.error('Failed to extract universal competencies dynamically with Google AI Studio:', err.message);
     return [];
   }
 };
@@ -58,6 +85,7 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
   const clinicalArr = Array.isArray(resumeJson.clinical_rotations) ? resumeJson.clinical_rotations : [];
   const researchArr = Array.isArray(resumeJson.research) ? resumeJson.research : [];
 
+  // Active Text: High-value applied experience & projects (Weight 2)
   const activeText = [
     ...experienceArr,
     ...projectsArr,
@@ -75,12 +103,12 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
     ? resumeJson.education.map(e => typeof e === 'object' ? Object.values(e).join(' ') : String(e)).join(' ')
     : String(resumeJson.education || '');
 
-  const passiveText = [
-    skillsObj,
-    certsArr,
-    summaryText,
-    eduArr
-  ].join(' ').toLowerCase();
+  // Passive Text: Skills listings, summary, education (Weight 1)
+  const passiveText = [skillsObj, certsArr, summaryText, eduArr].join(' ').toLowerCase();
+
+  console.log(`\n--- [ATS Dual-Weight Matching Engine] ---`);
+  console.log(`[Active Corpus Length]  : ${activeText.length} characters (Experience + Projects)`);
+  console.log(`[Passive Corpus Length] : ${passiveText.length} characters (Skills + Summary + Education)`);
 
   competencyArray.forEach(item => {
     const keyword = String(item.keyword || '').toLowerCase().trim();
@@ -89,33 +117,45 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
 
     let keywordScore = 0;
     let matchedTerm = keyword;
+    let matchedIn = '';
 
     for (const term of allTerms) {
       if (matchTermInText(term, activeText)) {
-        keywordScore = 2;
+        keywordScore = 2; // Weight 2 for applied experience/projects
         matchedTerm = term;
+        matchedIn = 'Experience/Projects (Weight 2)';
         break;
       } else if (matchTermInText(term, passiveText)) {
-        keywordScore = 1;
+        keywordScore = 1; // Weight 1 for passive skills bank
         matchedTerm = term;
+        matchedIn = 'Skills/Summary (Weight 1)';
       }
     }
 
     if (keywordScore > 0) {
       score += keywordScore;
-      matchedKeywords.push({ keyword, matchedTerm, weight: keywordScore });
+      matchedKeywords.push({ keyword, matchedAs: matchedTerm, weight: keywordScore, matchedIn });
+      console.log(`  ✓ Matched: "${keyword}" (via "${matchedTerm}") -> +${keywordScore} pts [${matchedIn}]`);
     } else {
       missingKeywords.push(keyword);
+      console.log(`  ✗ Missing: "${keyword}" (checked: ${allTerms.join(', ')}) -> 0 pts`);
     }
   });
 
-  const matchPercentage = Math.round((score / maxPossibleScore) * 100);
+  const matchPercentage = Math.min(100, Math.round((score / maxPossibleScore) * 100));
+  console.log(`[ATS Score Calculation] Total Points: ${score} / ${maxPossibleScore} => ${matchPercentage}%\n`);
 
   return {
     matchPercentage,
     matchedKeywords,
-    missingKeywords
+    missingKeywords,
+    score,
+    maxPossibleScore
   };
 }
 
-module.exports = { extractJDSkillsUniversal, calculateUniversalATSScore, escapeRegExp, matchTermInText };
+module.exports = {
+  extractJDSkillsUniversal,
+  calculateUniversalATSScore,
+  matchTermInText
+};

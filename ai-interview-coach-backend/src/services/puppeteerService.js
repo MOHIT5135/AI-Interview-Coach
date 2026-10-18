@@ -4,20 +4,37 @@ const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
 
+const getChromePath = () => {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  const paths = [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return undefined;
+};
+
 const renderResumeToPDF = async (resumeData, outputPath) => {
   let browser;
   try {
+    const executablePath = getChromePath();
     browser = await puppeteer.launch({
       headless: 'new',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote'
+        '--disable-gpu'
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+      executablePath: executablePath
     });
 
     const page = await browser.newPage();

@@ -1,20 +1,19 @@
 'use strict';
-/**
- * aiEditor.js
- *
- * Rewrites wording of complete bullets for clarity and target role alignment.
- * Safe model slug resolution prevents "getModel is not a function" crashes.
- */
 const { collectBullets } = require('./resumeParser');
 const { validateEdit, splitKeywordsByPresence, buildAllowed } = require('./bulletGuard');
+const { callGeminiAI, getModel: defaultGetModel } = require('../services/aiService');
 
 const MAX_BULLETS = 16;
 
 const createBulletMap = (parsed) => {
   const original = {};
   const meta = {};
-  collectBullets(parsed).slice(0, MAX_BULLETS).forEach((b, n) => {
-    const id = `b${n}`;
+  let expCount = 0;
+  let projCount = 0;
+
+  collectBullets(parsed).slice(0, MAX_BULLETS).forEach((b) => {
+    const isExp = b.section === 'Experience';
+    const id = isExp ? `exp_${expCount++}` : `proj_${projCount++}`;
     original[id] = b.text;
     meta[id] = { section: b.section, entry: b.entry, ref: b.ref, index: b.index };
   });
@@ -23,22 +22,30 @@ const createBulletMap = (parsed) => {
 
 const buildPrompt = (bulletMap, targetRole, usableKeywords) => {
   const list = Object.keys(bulletMap.original).map((id) => `${id}: ${bulletMap.original[id]}`).join('\n');
-  return `You are a resume editor. Rewrite each bullet to read clearer and stronger for the target role "${targetRole}" WITHOUT changing any facts.
+  return `You are an expert resume editor. Rewrite each bullet to read clearer and stronger for the target role "${targetRole}" WITHOUT changing any facts.
 
 RULES:
-1. Use ONLY facts, technologies, tools, numbers and names that already appear in that same bullet. Do not add any ungrounded technology, metric, or employer.
-2. Keep every number, percentage and unit exactly as written.
-3. You may improve: action verb, clarity, concision and result-first phrasing. Keep length within about 30% of the original.
-4. Emphasis keywords: ${JSON.stringify(usableKeywords)}. Foreground one ONLY if the bullet already mentions it. Never insert a keyword that is not already in the bullet.
+1. Use ONLY facts, technologies, tools, numbers and names that already appear in that same bullet. Do not add any new technology, tool, metric, employer, or title.
+2. Keep every number, percentage, and unit exactly as written.
+3. You may improve only: action verb, clarity, concision, and result-first phrasing (Google X-Y-Z formula: Accomplished X as measured by Y by doing Z). Keep the length within 30% of the original.
+4. Keywords present in the resume: ${JSON.stringify(usableKeywords)}. Emphasize them ONLY if already mentioned in that bullet.
 5. If a bullet is already strong, return it unchanged.
 
-Return ONLY a JSON object: {"<id>": "<rewritten bullet>"} using the ids below.
+Return ONLY a valid JSON object in this format: {"<id>": "<rewritten bullet>"} using the exact IDs below:
 
 BULLETS:
 ${list}`;
 };
 
-const optimizeBulletsWithAI = async (bulletMap, targetRole, keywords, callOpenRouter, getModel, resumeBaseText = '', attested = []) => {
+const optimizeBulletsWithAI = async (
+  bulletMap,
+  targetRole,
+  keywords,
+  callAiFn = callGeminiAI,
+  getModelFn = defaultGetModel,
+  resumeBaseText = '',
+  attested = []
+) => {
   const resumeText = `${resumeBaseText}\n${(attested || []).join(' ')}`;
   const optimized = {};
   const rejected = {};
@@ -48,29 +55,32 @@ const optimizeBulletsWithAI = async (bulletMap, targetRole, keywords, callOpenRo
   const { usable, skipped } = splitKeywordsByPresence(keywords, resumeText);
   let parsed = {};
 
-  // Safe getModel resolver: supports function, string, or env fallback
-  const modelSlug = typeof getModel === 'function'
-    ? getModel()
-    : (typeof getModel === 'string' && getModel ? getModel : (process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001'));
-
   try {
-    const reply = await callOpenRouter(buildPrompt(bulletMap, targetRole, usable), 0.2, modelSlug, 'AI Bullet Optimization');
-    const cleaned = String(reply).replace(/```json/g, '').replace(/```/g, '').trim();
-    parsed = JSON.parse(cleaned.slice(cleaned.indexOf('{'), cleaned.lastIndexOf('}') + 1));
+    const aiCaller = typeof callAiFn === 'function' ? callAiFn : callGeminiAI;
+    const modelGetter = typeof getModelFn === 'function' ? getModelFn : defaultGetModel;
+    const reply = await aiCaller(buildPrompt(bulletMap, targetRole, usable), 0.2, modelGetter(), 'AI Bullet Optimization');
+    const cleaned = String(reply).replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      parsed = JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
+    }
   } catch (err) {
-    console.error('AI Bullet Optimization failed, keeping originals:', err.message);
+    console.error('AI Bullet Optimization parse failure, keeping originals:', err.message);
   }
 
   const allowed = buildAllowed(resumeText);
   ids.forEach((id) => {
     const orig = bulletMap.original[id];
-    const value = parsed[id];
-    const candidate = typeof value === 'string' ? value : (value && value.text) || '';
+    const candidate = typeof parsed[id] === 'string' ? parsed[id] : (parsed[id]?.text || '');
     const check = validateEdit(orig, candidate, resumeText, allowed);
-    if (check.ok) optimized[id] = candidate.replace(/\s+/g, ' ').trim();
-    else {
+    if (check.ok) {
+      optimized[id] = candidate.replace(/\s+/g, ' ').trim();
+    } else {
       optimized[id] = orig;
-      if (candidate && !check.reasons.includes('unchanged')) rejected[id] = check.reasons;
+      if (candidate && !check.reasons.includes('unchanged')) {
+        rejected[id] = check.reasons;
+      }
     }
   });
 

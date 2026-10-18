@@ -1,52 +1,52 @@
-const axios = require('axios');
+const { GoogleGenAI } = require('@google/genai');
 const crypto = require('crypto');
 const AtsCache = require('../models/AtsCache');
 const AtsAlias = require('../models/AtsAlias');
 
-const getModel = () => process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
-const getInterviewModel = () => process.env.INTERVIEW_MODEL || process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
-const getReasoningModel = () => process.env.REASONING_MODEL || 'google/gemini-2.0-flash-001';
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const ai = new GoogleGenAI({ apiKey });
 
-const getBaseUrl = () => {
-  let url = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-  if (url.endsWith('/')) url = url.slice(0, -1);
-  return url;
-};
+const getModel = () => process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+const getInterviewModel = () => process.env.INTERVIEW_MODEL || process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+const getReasoningModel = () => process.env.REASONING_MODEL || process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
-const callOpenRouter = async (prompt, temperature = 0, model = getModel(), taskName = 'AI Task') => {
+const callGeminiAI = async (prompt, temperature = 0.2, model = getModel(), taskName = 'AI Task') => {
   try {
-    const headers = {
-      'HTTP-Referer': 'https://ai-interview-coach.local',
-      'X-Title': 'AI Interview Coach',
-      'Content-Type': 'application/json',
-    };
-
-    if (process.env.OPENROUTER_API_KEY) {
-      headers['Authorization'] = `Bearer ${process.env.OPENROUTER_API_KEY}`;
+    let modelName = model;
+    if (typeof modelName === 'function') {
+      try {
+        modelName = modelName();
+      } catch (_) {}
+    }
+    modelName = String(modelName || 'gemini-3.1-flash-lite');
+    if (modelName.startsWith('google/')) {
+      modelName = modelName.replace('google/', '');
+    } else if (modelName.startsWith('antigravity/')) {
+      modelName = modelName.replace('antigravity/', '');
+    }
+    if (!modelName || modelName.includes('/')) {
+      modelName = 'gemini-3.1-flash-lite';
     }
 
-    const payload = {
-      model: model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: temperature,
-    };
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        temperature: temperature,
+      },
+    });
 
-    const response = await axios.post(`${getBaseUrl()}/chat/completions`, payload, { headers });
-    const reportedModel = response.data.model || model;
-    const usage = response.data.usage;
-    const reasoningTokens = usage?.completion_tokens_details?.reasoning_tokens ?? 0;
-    if (usage) {
-      console.log(`[AI Usage] [${taskName}] Model: ${reportedModel} | Prompt: ${usage.prompt_tokens} | Completion: ${usage.completion_tokens} (Reasoning: ${reasoningTokens}) | Total: ${usage.total_tokens}`);
-    }
+    const text = response.text ? response.text.trim() : '';
+    console.log(`[Google AI Studio] [${taskName}] Model: ${modelName} | Generated chars: ${text.length}`);
 
-    let text = response.data.choices[0].message.content.trim();
-    if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
-      text = text.slice(1, -1).trim();
+    let cleanedText = text;
+    if ((cleanedText.startsWith('"') && cleanedText.endsWith('"')) || (cleanedText.startsWith("'") && cleanedText.endsWith("'"))) {
+      cleanedText = cleanedText.slice(1, -1).trim();
     }
-    return text;
+    return cleanedText;
   } catch (error) {
-    console.error('AI Service Error:', error.response?.data || error.message);
-    throw new Error('Failed to communicate with AI service.');
+    console.error('Google AI Studio Service Error:', error.message || error);
+    throw new Error(`Failed to communicate with Google AI service: ${error.message}`);
   }
 };
 
@@ -85,7 +85,7 @@ const parseJSON = (content, fallback = {}) => {
       let repaired = cleaned.trim().replace(/,\s*$/, '');
       const openBraces = (repaired.match(/\{/g) || []).length;
       const closeBraces = (repaired.match(/\}/g) || []).length;
-      const openBrackets = (repaired.match(/\]/g) || []).length; 
+      const openBrackets = (repaired.match(/\]/g) || []).length;
       const closeBrackets = (repaired.match(/\]/g) || []).length;
 
       for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']';
@@ -263,7 +263,7 @@ Return ONLY a valid JSON array of objects with the following structure (no markd
   }
 ]`;
 
-  const responseText = await callOpenRouter(prompt, 0.2, getModel(), 'Resume Suggestions');
+  const responseText = await callGeminiAI(prompt, 0.2, getModel(), 'Resume Suggestions');
   return parseJSON(responseText, []);
 };
 
@@ -297,7 +297,7 @@ Return ONLY valid JSON in this exact format:
 RESUME:
 ${cleanedResume.substring(0, 4000)}`;
 
-  const responseText = await callOpenRouter(prompt, 0.2, getInterviewModel(), 'Resume Summarization');
+  const responseText = await callGeminiAI(prompt, 0.2, getInterviewModel(), 'Resume Summarization');
   const parsed = parseJSON(responseText, {});
   const result = {
     summary: parsed.summary || '',
@@ -323,7 +323,7 @@ QUESTION DESIGN RULES (PREVENT CANDIDATE OVERWHELM):
 
 Output ONLY the question text (no conversational openers, no markdown formatting or extra commentary).`;
 
-  const q = await callOpenRouter(prompt, 0.4, getInterviewModel(), 'First Interview Question Generation');
+  const q = await callGeminiAI(prompt, 0.4, getInterviewModel(), 'First Interview Question Generation');
   return cleanQuestion(q);
 };
 
@@ -363,7 +363,7 @@ Output ONLY valid JSON in this exact format:
   "nextQuestion": string (or null if questionNumber >= totalQuestions)
 }`;
 
-  const responseText = await callOpenRouter(prompt, 0.3, getReasoningModel(), 'Interview Answer Evaluation & Next');
+  const responseText = await callGeminiAI(prompt, 0.3, getReasoningModel(), 'Interview Answer Evaluation & Next');
   const result = parseJSON(responseText, {
     score: 8,
     topic: nextTopic || 'Technical Engineering',
@@ -408,7 +408,7 @@ Output ONLY valid JSON in this exact format:
   "summary": string
 }`;
 
-  const responseText = await callOpenRouter(prompt, 0.3, getReasoningModel(), 'Final Interview Summary');
+  const responseText = await callGeminiAI(prompt, 0.3, getReasoningModel(), 'Final Interview Summary');
   const result = parseJSON(responseText, {
     overallScore: 8,
     strengths: ['Demonstrated solid grasp of technical basics.'],
@@ -425,7 +425,8 @@ Output ONLY valid JSON in this exact format:
 };
 
 module.exports = {
-  callOpenRouter,
+  callGeminiAI,
+  getModel,
   parseJSON,
   getDefaultTopicsForRole,
   getDifficultyGuidelines,

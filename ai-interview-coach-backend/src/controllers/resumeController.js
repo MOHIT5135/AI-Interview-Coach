@@ -1,13 +1,11 @@
 'use strict';
-const { recordUserAlias, callOpenRouter } = require('../services/aiService');
+const { recordUserAlias, callGeminiAI, getModel } = require('../services/aiService');
 const { renderResumeToPDF } = require('../services/puppeteerService');
 const { parseResumeBuffer } = require('../utils/resumeParser');
 const { extractJDSkillsUniversal, calculateUniversalATSScore } = require('../utils/atsEvaluator');
 const { createBulletMap, optimizeBulletsWithAI } = require('../utils/aiEditor');
 const fs = require('fs');
 const path = require('path');
-
-const getModel = () => process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
 
 // ==========================================
 // 1. SMART DEDUPLICATION & ALIAS DICTIONARY
@@ -244,7 +242,7 @@ function convertParsedResumeToTemplateJson(parsed) {
         const cleanTechStack = rawSubtitle
           .replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '')
           .replace(/\((https?:\/\/[^\s\)]+)\)/g, '')
-          .replace(/\s*\(\s*(GitHub\vert{}Live\vert{}Demo\vert{}Link\vert{}Portfolio)\s*\)\s*$/i, '')
+          .replace(/\s*\(\s*(GitHub|Live|Demo|Link|Portfolio)\s*\)\s*$/i, '')
           .trim();
 
         structured.projects.push({
@@ -295,8 +293,17 @@ const handleATSCheck = async (req, res) => {
       return res.status(400).json({ error: 'Resume PDF file is required' });
     }
 
+    console.log(`\n========================================================`);
+    console.log(`[ATS Check Request Received]`);
+    console.log(`  Uploaded File : ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`);
+    console.log(`  JD Preview    : "${String(jobDescription || '').replace(/\s+/g, ' ').substring(0, 140)}..."`);
+
     const parsedResume = await parseResumeBuffer(req.file.buffer);
-    const competencies = await extractJDSkillsUniversal(jobDescription, callOpenRouter, getModel);
+    console.log(`  Parsed Resume : Extracted ${(parsedResume.blocks || []).length} blocks (${parsedResume.text?.length || 0} chars)`);
+
+    // Passes callGeminiAI and getModel cleanly
+    const competencies = await extractJDSkillsUniversal(jobDescription, callGeminiAI, getModel);
+    console.log(`  JD Competencies Extracted (${competencies.length}): [ ${competencies.map(c => c.keyword).join(', ')} ]`);
 
     const experienceBlocks = [];
     const projectBlocks = [];
@@ -328,6 +335,12 @@ const handleATSCheck = async (req, res) => {
       },
       competencies
     );
+
+    console.log(`[ATS Check Result Summary]:`);
+    console.log(`  Match Score      : ${scoreResult.matchPercentage}% (${scoreResult.score}/${scoreResult.maxPossibleScore} pts)`);
+    console.log(`  Matched Keywords (${scoreResult.matchedKeywords.length}): ${scoreResult.matchedKeywords.map(m => m.keyword).join(', ')}`);
+    console.log(`  Missing Keywords (${scoreResult.missingKeywords.length}): ${scoreResult.missingKeywords.join(', ')}`);
+    console.log(`========================================================\n`);
 
     res.json({
       matchScore: scoreResult.matchPercentage,
@@ -366,7 +379,7 @@ const handleOptimizeBullets = async (req, res) => {
       bulletMap,
       `Target Role: ${cleanRole}`,
       parsedKeywords,
-      callOpenRouter,
+      callGeminiAI,
       getModel,
       parsedResume.text
     );
