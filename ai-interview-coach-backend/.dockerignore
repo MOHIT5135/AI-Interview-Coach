@@ -1,10 +1,25 @@
-node_modules
-npm-debug.log
+# Environment files and secrets
 .env
-.env.local
+.env.*
+!.env.example
+
+# Dependencies
+node_modules
+
+# Git files
 .git
 .gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test reports and coverage
 reports
-**/*.pdf
 coverage
+
+# PDF files
+**/*.pdf
+
+# Operating system files
 .DS_Store
