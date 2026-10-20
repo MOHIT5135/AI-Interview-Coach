@@ -40,7 +40,6 @@ function matchTermInText(term, text) {
   return false;
 }
 
-// Safely resolves model whether it's a function, string, or undefined
 const resolveModel = (modelOrFn) => {
   if (typeof modelOrFn === 'function') {
     try {
@@ -82,7 +81,6 @@ JD: "${rawJobDescription}"
     const aiCaller = typeof callAiFn === 'function' ? callAiFn : callGeminiAI;
     const resolvedModel = resolveModel(modelOrFn);
 
-    console.log(`\n[ATS Competency Extraction] Calling Google AI Studio with model: "${resolvedModel}"...`);
     const response = await aiCaller(universalJdPrompt, 0, resolvedModel, 'ATS Universal Competencies Extraction');
     let cleaned = String(response || '').replace(/```json/g, '').replace(/```/g, '').trim();
     const firstBracket = cleaned.indexOf('[');
@@ -91,11 +89,8 @@ JD: "${rawJobDescription}"
       cleaned = cleaned.substring(firstBracket, lastBracket + 1);
     }
     const parsed = JSON.parse(cleaned);
-    const list = Array.isArray(parsed) ? parsed : [];
-    console.log(`[ATS Competency Extraction] Extracted ${list.length} competencies from JD.`);
-    return list;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
-    console.error('Failed to extract universal competencies dynamically with Google AI Studio:', err.message);
     return [];
   }
 };
@@ -112,7 +107,6 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
   const clinicalArr = Array.isArray(resumeJson.clinical_rotations) ? resumeJson.clinical_rotations : [];
   const researchArr = Array.isArray(resumeJson.research) ? resumeJson.research : [];
 
-  // Active Text: High-value applied experience & projects (Weight 2)
   const activeText = [
     ...experienceArr.map(e => typeof e === 'object' ? `${e.title || ''} ${e.company || ''} ${(e.bullets || []).join(' ')}` : String(e)),
     ...projectsArr.map(p => typeof p === 'object' ? `${p.name || ''} ${p.techStack || ''} ${(p.bullets || []).join(' ')}` : String(p)),
@@ -130,12 +124,7 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
     ? resumeJson.education.map(e => typeof e === 'object' ? Object.values(e).join(' ') : String(e)).join(' ')
     : String(resumeJson.education || '');
 
-  // Passive Text: Skills listings, summary, education (Weight 1)
   const passiveText = [skillsObj, certsArr, summaryText, eduArr].join(' ').toLowerCase();
-
-  console.log(`\n--- [ATS Dual-Weight Matching Engine] ---`);
-  console.log(`[Active Corpus Length]  : ${activeText.length} characters (Experience + Projects)`);
-  console.log(`[Passive Corpus Length] : ${passiveText.length} characters (Skills + Summary + Education)`);
 
   competencyArray.forEach(item => {
     const keyword = String(item.keyword || '').toLowerCase().trim();
@@ -148,12 +137,12 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
 
     for (const term of allTerms) {
       if (matchTermInText(term, activeText)) {
-        keywordScore = 2; // Weight 2 for applied experience/projects
+        keywordScore = 2;
         matchedTerm = term;
         matchedIn = 'Experience/Projects (Weight 2)';
         break;
       } else if (matchTermInText(term, passiveText)) {
-        keywordScore = 1; // Weight 1 for passive skills bank
+        keywordScore = 1;
         matchedTerm = term;
         matchedIn = 'Skills/Summary (Weight 1)';
       }
@@ -162,10 +151,8 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
     if (keywordScore > 0) {
       score += keywordScore;
       matchedKeywords.push({ keyword, matchedAs: matchedTerm, weight: keywordScore, matchedIn });
-      console.log(`  ✓ Matched: "${keyword}" (via "${matchedTerm}") -> +${keywordScore} pts [${matchedIn}]`);
     } else {
       missingKeywords.push(keyword);
-      console.log(`  ✗ Missing: "${keyword}" (checked: ${allTerms.join(', ')}) -> 0 pts`);
     }
   });
 
@@ -173,11 +160,6 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
   const totalCompetencies = Math.max(1, competencyArray.length);
   const competencyCoverage = Math.round((matchedKeywords.length / totalCompetencies) * 100);
 
-  console.log(`[Competency Coverage]      : ${matchedKeywords.length} / ${totalCompetencies} matched => ${competencyCoverage}%`);
-  console.log(`[Evidence Weighted Score]   : ${score} / ${maxPossibleScore} pts => ${matchPercentage}%`);
-  console.log(`[ATS Score Calculation] Total Points: ${score} / ${maxPossibleScore} => ${matchPercentage}%\n`);
-
-  // Industrial-Grade ATS Metrics Audit
   const allBullets = [
     ...experienceArr.flatMap(e => (typeof e === 'object' && Array.isArray(e.bullets)) ? e.bullets : (typeof e === 'string' ? [e] : [])),
     ...projectsArr.flatMap(p => (typeof p === 'object' && Array.isArray(p.bullets)) ? p.bullets : (typeof p === 'string' ? [p] : []))

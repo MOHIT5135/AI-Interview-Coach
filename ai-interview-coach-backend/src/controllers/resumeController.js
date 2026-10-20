@@ -295,17 +295,10 @@ const handleATSCheck = async (req, res) => {
       return res.status(400).json({ error: 'Resume PDF file is required' });
     }
 
-    console.log(`\n========================================================`);
-    console.log(`[ATS Check Request Received]`);
-    console.log(`  Uploaded File : ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`);
-    console.log(`  JD Preview    : "${String(jobDescription || '').replace(/\s+/g, ' ').substring(0, 140)}..."`);
-
     const parsedResume = await parseResumeBuffer(req.file.buffer);
-    console.log(`  Parsed Resume : Extracted ${(parsedResume.blocks || []).length} blocks (${parsedResume.text?.length || 0} chars)`);
 
     // Passes callGeminiAI and getModel cleanly
     const competencies = await extractJDSkillsUniversal(jobDescription, callGeminiAI, getModel);
-    console.log(`  JD Competencies Extracted (${competencies.length}): [ ${competencies.map(c => c.keyword).join(', ')} ]`);
 
     const structuredJSON = convertParsedResumeToTemplateJson(parsedResume);
 
@@ -331,16 +324,6 @@ const handleATSCheck = async (req, res) => {
       (scoreResult.formattingScore * 0.15) +
       (scoreResult.metricPercentage * 0.15)
     ));
-
-    console.log(`[ATS Composite Score Formula Breakdown]:`);
-    console.log(`  Formula: (Lexical Match Score * 40%) + (Semantic Vector Similarity * 30%) + (Formatting Health * 15%) + (Quantifiable Metrics * 15%)`);
-    console.log(`  Values:  (${scoreResult.matchPercentage}% * 0.40) + (${semanticSimilarity}% * 0.30) + (${scoreResult.formattingScore}% * 0.15) + (${scoreResult.metricPercentage}% * 0.15) = ${finalMatchScore}%`);
-
-    console.log(`[ATS Check Result Summary]:`);
-    console.log(`  Final Match Score : ${finalMatchScore}% (Semantic Vector Sim: ${semanticSimilarity}%, Lexical: ${scoreResult.matchPercentage}%)`);
-    console.log(`  Matched Keywords (${scoreResult.matchedKeywords.length}): ${scoreResult.matchedKeywords.map(m => m.keyword).join(', ')}`);
-    console.log(`  Missing Keywords (${scoreResult.missingKeywords.length}): ${scoreResult.missingKeywords.join(', ')}`);
-    console.log(`========================================================\n`);
 
     res.json({
       matchScore: finalMatchScore,
