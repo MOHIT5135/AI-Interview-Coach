@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { calculateUniversalATSScore } = require('./src/utils/atsEvaluator');
+const { calculateUniversalATSScore, matchTermInText } = require('./src/utils/atsEvaluator');
 const { parseResumeBuffer, collectBullets, applyBulletEdits } = require('./src/utils/resumeParser');
 const { createBulletMap, optimizeBulletsWithAI, reconstructStructuredJSON } = require('./src/utils/aiEditor');
 const { validateEdit, splitKeywordsByPresence, buildAllowed } = require('./src/utils/bulletGuard');
@@ -27,8 +27,34 @@ console.log('Invalid Rewrite Check:', checkInvalid);
 assert.strictEqual(checkInvalid.ok, false, 'Invalid rewrite with hallucinated PostgreSQL and new number should fail');
 console.log('PASSED: Bullet Guard Anti-Fabrication Validation\n');
 
-// Test 2: Resume Parser & Bullet Mapping
-console.log('Test 2: Resume Parser Buffer & Bullet Mapping');
+// Test 2: Generic Keyword Normalization & Synonym Matching
+console.log('Test 2: Generic Keyword Normalization & Synonym Matching');
+const sampleText = 'Developed scalable backend services using Node.js, Express.js, MongoDB, and RESTful APIs.';
+assert.strictEqual(matchTermInText('rest apis', sampleText), true, 'rest apis should match RESTful APIs');
+assert.strictEqual(matchTermInText('restful api', sampleText), true, 'restful api should match RESTful APIs');
+assert.strictEqual(matchTermInText('node', sampleText), true, 'node should match Node.js');
+console.log('PASSED: Generic Keyword Normalization & Synonym Matching\n');
+
+// Test 3: ATS Scoring Pipeline Integration
+console.log('Test 3: ATS Scoring Pipeline Integration');
+const mockResumeJson = {
+  summary: 'Full stack developer skilled in React and Node.js',
+  skills: { Technical: 'React.js, Node.js, Express.js, MongoDB' },
+  experience: [{ title: 'Developer', company: 'Tech Corp', bullets: ['Developed RESTful APIs using Node.js and MongoDB.'] }]
+};
+const mockCompetencies = [
+  { keyword: 'node.js', synonyms: ['node', 'nodejs'] },
+  { keyword: 'restful apis', synonyms: ['rest api', 'rest apis'] },
+  { keyword: 'graphql', synonyms: ['gql'] }
+];
+const atsResult = calculateUniversalATSScore(mockResumeJson, mockCompetencies);
+console.log('ATS Score Result:', atsResult);
+assert(atsResult.matchPercentage > 0, 'ATS match score should be calculated');
+assert(atsResult.matchedKeywords.length >= 2, 'Should match at least node.js and restful apis');
+console.log('PASSED: ATS Scoring Pipeline Integration\n');
+
+// Test 4: Resume Parser & Bullet Mapping
+console.log('Test 4: Resume Parser Buffer & Bullet Mapping');
 const resumePdfPath = 'C:/Users/mohit/Desktop/Amit_Sain_Resume_SDE_FullStack.pdf';
 if (fs.existsSync(resumePdfPath)) {
   const pdfBuffer = fs.readFileSync(resumePdfPath);
@@ -54,7 +80,7 @@ if (fs.existsSync(resumePdfPath)) {
     process.exit(0);
   });
 } else {
-  console.log('Amit_Sain_Resume_SDE_FullStack.pdf not found, skipping Test 2 PDF parse.');
+  console.log('Amit_Sain_Resume_SDE_FullStack.pdf not found, skipping Test 4 PDF parse.');
   console.log('========================================');
   console.log('ALL TEST PHASES PASSED WITH ZERO ERRORS');
   console.log('========================================');

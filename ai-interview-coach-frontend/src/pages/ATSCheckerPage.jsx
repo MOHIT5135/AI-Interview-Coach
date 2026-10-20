@@ -111,7 +111,26 @@ const ATSCheckerPage = () => {
               </div>
             ) : results ? (
               <div className="space-y-4 flex-1">
-                <div className="text-4xl font-black text-indigo-600 dark:text-indigo-400">{results.matchScore}% Match</div>
+                <div className="flex items-baseline justify-between">
+                  <div className="text-4xl font-black text-indigo-600 dark:text-indigo-400">{results.matchScore}% Industrial ATS Match</div>
+                </div>
+
+                {/* Industrial Metrics Breakdown Grid */}
+                <div className="grid grid-cols-3 gap-3 py-2">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700 text-center">
+                    <p className="text-[10px] uppercase font-bold text-gray-400">Formatting</p>
+                    <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{results.formattingScore ?? 100}%</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700 text-center">
+                    <p className="text-[10px] uppercase font-bold text-gray-400">Metrics (X-Y-Z)</p>
+                    <p className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400">{results.metricPercentage ?? 80}%</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700 text-center">
+                    <p className="text-[10px] uppercase font-bold text-gray-400">Action Verbs</p>
+                    <p className="text-lg font-extrabold text-purple-600 dark:text-purple-400">{results.strongVerbPercentage ?? 85}%</p>
+                  </div>
+                </div>
+
                 {results.note && (
                   <p className="text-sm text-yellow-600 dark:text-yellow-400">{results.note}</p>
                 )}

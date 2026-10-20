@@ -37,6 +37,22 @@ BULLETS:
 ${list}`;
 };
 
+const removeDuplicateFragments = (text) => {
+  if (!text || typeof text !== 'string') return text;
+  const parts = text.split(/(?<=[.!?])\s+/);
+  const seen = new Set();
+  const cleaned = [];
+  for (const p of parts) {
+    const norm = p.trim().toLowerCase();
+    if (!norm) continue;
+    if (!seen.has(norm)) {
+      seen.add(norm);
+      cleaned.push(p.trim());
+    }
+  }
+  return cleaned.join(' ');
+};
+
 const optimizeBulletsWithAI = async (
   bulletMap,
   targetRole,
@@ -75,7 +91,7 @@ const optimizeBulletsWithAI = async (
     const candidate = typeof parsed[id] === 'string' ? parsed[id] : (parsed[id]?.text || '');
     const check = validateEdit(orig, candidate, resumeText, allowed);
     if (check.ok) {
-      optimized[id] = candidate.replace(/\s+/g, ' ').trim();
+      optimized[id] = removeDuplicateFragments(candidate.replace(/\s+/g, ' ').trim());
     } else {
       optimized[id] = orig;
       if (candidate && !check.reasons.includes('unchanged')) {

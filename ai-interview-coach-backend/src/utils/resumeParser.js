@@ -378,7 +378,6 @@ const parseSkills = (lines) => {
 
 const parseEntries = (lines) => {
   if (!lines.length) return [];
-  const margin = Math.min(...lines.map((l) => l.x));
   const entries = [];
   let cur = null;
   let last = null; // 'header' | 'subtitle' | 'bullet'
@@ -388,47 +387,45 @@ const parseEntries = (lines) => {
     entries.push(cur);
   };
   const attach = (ln) => ln.links.forEach((l) => addLink(cur.links, l));
-  const startsHeader = (ln, clean) => ln.x <= margin + 2 && /^[A-Z0-9(]/.test(clean);
 
   lines.forEach((ln) => {
     const raw = ln.text;
-    if (isBulletStart(raw)) {
-      if (!cur) newEntry();
-      cur.bullets.push(stripBullet(raw));
-      attach(ln);
-      last = 'bullet';
-      return;
-    }
     const clean = stripLinkLabels(raw, ln.links);
     const dm = findHeaderDate(clean);
 
-    if (last === null) {
-      newEntry(dm ? dm.rest : clean, dm ? dm.date : '');
-      attach(ln); last = 'header'; return;
-    }
-    if (last === 'bullet') {
-      if (dm || startsHeader(ln, clean)) {
-        newEntry(dm ? dm.rest : clean, dm ? dm.date : '');
-        attach(ln); last = 'header';
-      } else if (cur.bullets.length) {
-        cur.bullets[cur.bullets.length - 1] = joinLines(cur.bullets[cur.bullets.length - 1], raw);
-        attach(ln);
-      }
+    if (dm) {
+      newEntry(dm.rest, dm.date);
+      attach(ln);
+      last = 'header';
       return;
     }
-    if (last === 'header') {
-      if (dm && !cur.date && !cur.subtitle) {
-        cur.date = dm.date;
-        cur.subtitle = dm.rest;
-        attach(ln); last = 'subtitle'; return;
-      }
-      if (dm) { newEntry(dm.rest, dm.date); attach(ln); last = 'header'; return; }
-      cur.subtitle = clean; attach(ln); last = 'subtitle'; return;
+
+    if (!cur) {
+      newEntry(clean, '');
+      attach(ln);
+      last = 'header';
+      return;
     }
-    // last === 'subtitle'
-    if (dm) { newEntry(dm.rest, dm.date); attach(ln); last = 'header'; return; }
-    cur.subtitle = joinLines(cur.subtitle, clean);
+
+    if (last === 'header') {
+      cur.subtitle = clean;
+      attach(ln);
+      last = 'subtitle';
+      return;
+    }
+
+    // Subsequent lines belong to bullets of the current entry
+    if (isBulletStart(raw)) {
+      cur.bullets.push(stripBullet(raw));
+    } else {
+      if (cur.bullets.length > 0 && last === 'bullet') {
+        cur.bullets[cur.bullets.length - 1] = joinLines(cur.bullets[cur.bullets.length - 1], clean);
+      } else {
+        cur.bullets.push(clean);
+      }
+    }
     attach(ln);
+    last = 'bullet';
   });
   return entries;
 };

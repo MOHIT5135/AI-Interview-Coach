@@ -5,12 +5,39 @@ function escapeRegExp(string) {
   return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function normalizeForMatch(str) {
+  return String(str || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 1)
+    .map(w => w.replace(/s\b/g, '').replace(/ful\b/g, ''))
+    .join(' ');
+}
+
 function matchTermInText(term, text) {
   const cleanTerm = term.trim();
   if (!cleanTerm) return false;
   const escaped = escapeRegExp(cleanTerm);
   const regex = new RegExp(`(^|\\s|[.,/#!$%^&*;:{}=\\-_~\`()])(${escaped})(?=$|\\s|[.,/#!$%^&*;:{}=\\-_~\`()])`, 'i');
-  return regex.test(text);
+  if (regex.test(text)) return true;
+
+  const normTerm = normalizeForMatch(cleanTerm);
+  const normText = normalizeForMatch(text);
+  if (!normTerm) return false;
+
+  const termTokens = normTerm.split(/\s+/);
+  const textTokens = new Set(normText.split(/\s+/));
+
+  if (termTokens.every(tok => textTokens.has(tok))) {
+    return true;
+  }
+
+  if (normText.includes(normTerm)) {
+    return true;
+  }
+
+  return false;
 }
 
 // Safely resolves model whether it's a function, string, or undefined
@@ -87,11 +114,11 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
 
   // Active Text: High-value applied experience & projects (Weight 2)
   const activeText = [
-    ...experienceArr,
-    ...projectsArr,
-    ...clinicalArr,
-    ...researchArr
-  ].map(item => (typeof item === 'object' ? JSON.stringify(item) : String(item))).join(' ').toLowerCase();
+    ...experienceArr.map(e => typeof e === 'object' ? `${e.title || ''} ${e.company || ''} ${(e.bullets || []).join(' ')}` : String(e)),
+    ...projectsArr.map(p => typeof p === 'object' ? `${p.name || ''} ${p.techStack || ''} ${(p.bullets || []).join(' ')}` : String(p)),
+    ...clinicalArr.map(c => typeof c === 'object' ? `${c.title || ''} ${(c.bullets || []).join(' ')}` : String(c)),
+    ...researchArr.map(r => typeof r === 'object' ? `${r.title || ''} ${(r.bullets || []).join(' ')}` : String(r))
+  ].join(' ').toLowerCase();
 
   const skillsObj = resumeJson.skills
     ? (typeof resumeJson.skills === 'object' ? Object.values(resumeJson.skills).join(' ') : String(resumeJson.skills))
@@ -143,10 +170,53 @@ function calculateUniversalATSScore(resumeJson, competencyArray) {
   });
 
   const matchPercentage = Math.min(100, Math.round((score / maxPossibleScore) * 100));
+  const totalCompetencies = Math.max(1, competencyArray.length);
+  const competencyCoverage = Math.round((matchedKeywords.length / totalCompetencies) * 100);
+
+  console.log(`[Competency Coverage]      : ${matchedKeywords.length} / ${totalCompetencies} matched => ${competencyCoverage}%`);
+  console.log(`[Evidence Weighted Score]   : ${score} / ${maxPossibleScore} pts => ${matchPercentage}%`);
   console.log(`[ATS Score Calculation] Total Points: ${score} / ${maxPossibleScore} => ${matchPercentage}%\n`);
 
+  // Industrial-Grade ATS Metrics Audit
+  const allBullets = [
+    ...experienceArr.flatMap(e => (typeof e === 'object' && Array.isArray(e.bullets)) ? e.bullets : (typeof e === 'string' ? [e] : [])),
+    ...projectsArr.flatMap(p => (typeof p === 'object' && Array.isArray(p.bullets)) ? p.bullets : (typeof p === 'string' ? [p] : []))
+  ];
+
+  let bulletsWithMetrics = 0;
+  let bulletsWithStrongVerbs = 0;
+  const strongVerbs = ['engineered', 'architected', 'optimized', 'spearheaded', 'developed', 'deployed', 'implemented', 'designed', 'led', 'accelerated', 'automated', 'reduced', 'increased', 'built', 'transformed', 'delivered', 'pioneered'];
+
+  allBullets.forEach(b => {
+    const text = String(b).trim();
+    if (/\d+%|\$\d+|\d+\s*(users|requests|ms|seconds|latency|hours|days|x\b|queries|records)/i.test(text)) {
+      bulletsWithMetrics++;
+    }
+    const firstWord = text.split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '');
+    if (strongVerbs.includes(firstWord)) {
+      bulletsWithStrongVerbs++;
+    }
+  });
+
+  const totalBullets = Math.max(1, allBullets.length);
+  const metricPercentage = Math.round((bulletsWithMetrics / totalBullets) * 100);
+  const strongVerbPercentage = Math.round((bulletsWithStrongVerbs / totalBullets) * 100);
+  const formattingScore = (resumeJson.skills && Object.keys(resumeJson.skills).length > 0 && resumeJson.summary) ? 100 : 75;
+
+  const industrialScore = Math.min(100, Math.round(
+    (matchPercentage * 0.40) +
+    (formattingScore * 0.20) +
+    (metricPercentage * 0.20) +
+    (strongVerbPercentage * 0.20)
+  ));
+
   return {
-    matchPercentage,
+    matchPercentage: industrialScore,
+    keywordMatchPercentage: matchPercentage,
+    competencyCoverage,
+    formattingScore,
+    metricPercentage,
+    strongVerbPercentage,
     matchedKeywords,
     missingKeywords,
     score,

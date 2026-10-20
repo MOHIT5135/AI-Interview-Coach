@@ -4,6 +4,7 @@ const { renderResumeToPDF } = require('../services/puppeteerService');
 const { parseResumeBuffer } = require('../utils/resumeParser');
 const { extractJDSkillsUniversal, calculateUniversalATSScore } = require('../utils/atsEvaluator');
 const { createBulletMap, optimizeBulletsWithAI } = require('../utils/aiEditor');
+const { getOrComputeEmbedding, computeCosineSimilarity } = require('../services/embeddingService');
 const fs = require('fs');
 const path = require('path');
 
@@ -26,9 +27,9 @@ const COMMON_SKILL_ALIASES = {
 function normalizeSkillToken(str) {
   return String(str || '')
     .toLowerCase()
-    .replace(/\b(js|css|apis|api|framework|library)\b/g, '')
-    .replace(/ful\b/g, '')
     .replace(/[^a-z0-9]/g, '')
+    .replace(/s\b/g, '')
+    .replace(/ful\b/g, '')
     .trim();
 }
 
@@ -38,14 +39,8 @@ function areSkillsEquivalent(skillA, skillB) {
   if (!normA || !normB) return false;
   if (normA === normB) return true;
 
-  if (normA.length >= 4 && normB.length >= 4) {
+  if (normA.length >= 3 && normB.length >= 3) {
     if (normA.includes(normB) || normB.includes(normA)) return true;
-  }
-
-  for (const group of Object.values(COMMON_SKILL_ALIASES)) {
-    const inA = group.some(a => normalizeSkillToken(a) === normA || a.toLowerCase() === skillA.toLowerCase());
-    const inB = group.some(b => normalizeSkillToken(b) === normB || b.toLowerCase() === skillB.toLowerCase());
-    if (inA && inB) return true;
   }
   return false;
 }
@@ -268,6 +263,13 @@ function convertParsedResumeToTemplateJson(parsed) {
     }
   });
 
+  if (!structured.summary && parsed.text) {
+    const lines = parsed.text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length > 2) {
+      structured.summary = lines.slice(1, 4).join(' ');
+    }
+  }
+
   return structured;
 }
 
@@ -305,46 +307,49 @@ const handleATSCheck = async (req, res) => {
     const competencies = await extractJDSkillsUniversal(jobDescription, callGeminiAI, getModel);
     console.log(`  JD Competencies Extracted (${competencies.length}): [ ${competencies.map(c => c.keyword).join(', ')} ]`);
 
-    const experienceBlocks = [];
-    const projectBlocks = [];
-    let skillsText = '';
-    let summaryText = '';
-
-    (parsedResume.blocks || []).forEach((block) => {
-      if (block.isSummary) {
-        summaryText = block.text || '';
-      } else if (block.isSkills) {
-        skillsText = (block.items || []).map((i) => `${i.category}: ${i.items}`).join(' ');
-      } else if (block.isExperience) {
-        (block.entries || []).forEach((e) => {
-          experienceBlocks.push(`${e.title} ${e.subtitle} ${(e.bullets || []).join(' ')}`);
-        });
-      } else if (block.isProjects) {
-        (block.entries || []).forEach((e) => {
-          projectBlocks.push(`${e.title} ${e.subtitle} ${(e.bullets || []).join(' ')}`);
-        });
-      }
-    });
+    const structuredJSON = convertParsedResumeToTemplateJson(parsedResume);
 
     const scoreResult = calculateUniversalATSScore(
-      {
-        summary: summaryText || parsedResume.text,
-        skills: skillsText,
-        experience: experienceBlocks,
-        projects: projectBlocks
-      },
+      structuredJSON,
       competencies
     );
 
+    let semanticSimilarity = 0;
+    try {
+      const jdVector = await getOrComputeEmbedding(jobDescription, 'job_description');
+      const resumeVector = await getOrComputeEmbedding(parsedResume.text, 'resume');
+      if (jdVector.length > 0 && resumeVector.length > 0) {
+        semanticSimilarity = Math.round(computeCosineSimilarity(jdVector, resumeVector) * 100);
+      }
+    } catch (err) {
+      console.error('Vector similarity error:', err.message);
+    }
+
+    const finalMatchScore = Math.min(100, Math.round(
+      (scoreResult.matchPercentage * 0.40) +
+      (semanticSimilarity * 0.30) +
+      (scoreResult.formattingScore * 0.15) +
+      (scoreResult.metricPercentage * 0.15)
+    ));
+
+    console.log(`[ATS Composite Score Formula Breakdown]:`);
+    console.log(`  Formula: (Lexical Match Score * 40%) + (Semantic Vector Similarity * 30%) + (Formatting Health * 15%) + (Quantifiable Metrics * 15%)`);
+    console.log(`  Values:  (${scoreResult.matchPercentage}% * 0.40) + (${semanticSimilarity}% * 0.30) + (${scoreResult.formattingScore}% * 0.15) + (${scoreResult.metricPercentage}% * 0.15) = ${finalMatchScore}%`);
+
     console.log(`[ATS Check Result Summary]:`);
-    console.log(`  Match Score      : ${scoreResult.matchPercentage}% (${scoreResult.score}/${scoreResult.maxPossibleScore} pts)`);
+    console.log(`  Final Match Score : ${finalMatchScore}% (Semantic Vector Sim: ${semanticSimilarity}%, Lexical: ${scoreResult.matchPercentage}%)`);
     console.log(`  Matched Keywords (${scoreResult.matchedKeywords.length}): ${scoreResult.matchedKeywords.map(m => m.keyword).join(', ')}`);
     console.log(`  Missing Keywords (${scoreResult.missingKeywords.length}): ${scoreResult.missingKeywords.join(', ')}`);
     console.log(`========================================================\n`);
 
     res.json({
-      matchScore: scoreResult.matchPercentage,
-      atsScore: scoreResult.matchPercentage,
+      matchScore: finalMatchScore,
+      atsScore: finalMatchScore,
+      semanticSimilarity,
+      keywordMatchScore: scoreResult.matchPercentage,
+      formattingScore: scoreResult.formattingScore,
+      metricPercentage: scoreResult.metricPercentage,
+      strongVerbPercentage: scoreResult.strongVerbPercentage,
       missingKeywords: scoreResult.missingKeywords,
       matchedKeywords: scoreResult.matchedKeywords,
       formattingIssues: [],
@@ -375,6 +380,10 @@ const handleOptimizeBullets = async (req, res) => {
     const bulletMap = createBulletMap(parsedResume);
     const structuredJSON = convertParsedResumeToTemplateJson(parsedResume);
 
+    if (parsedKeywords && parsedKeywords.length > 0) {
+      structuredJSON.skills = injectOnlyMissingSkillsUniversally(structuredJSON.skills, parsedKeywords);
+    }
+
     const optimizationResult = await optimizeBulletsWithAI(
       bulletMap,
       `Target Role: ${cleanRole}`,
@@ -384,6 +393,14 @@ const handleOptimizeBullets = async (req, res) => {
       parsedResume.text
     );
 
+    let optimizedSummary = null;
+    try {
+      const summaryPrompt = `Write a powerful, concise 3-4 sentence professional summary for a ${cleanRole} position based on this resume text, incorporating these key skills: ${parsedKeywords.join(', ')}.
+      RESUME TEXT:
+      ${parsedResume.text.substring(0, 3000)}`;
+      optimizedSummary = await callGeminiAI(summaryPrompt, 0.2, getModel(), 'Summary Enhancement');
+    } catch (_) {}
+
     res.json({
       originalResume: parsedResume,
       structuredJSON,
@@ -391,7 +408,7 @@ const handleOptimizeBullets = async (req, res) => {
         original: bulletMap.original,
         optimized: optimizationResult.optimized
       },
-      optimizedSummary: optimizationResult.optimizedSummary || null,
+      optimizedSummary: optimizedSummary || null,
       targetRole: cleanRole
     });
   } catch (error) {
