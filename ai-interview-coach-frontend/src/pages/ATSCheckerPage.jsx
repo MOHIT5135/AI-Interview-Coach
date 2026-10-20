@@ -112,11 +112,11 @@ const ATSCheckerPage = () => {
             ) : results ? (
               <div className="space-y-4 flex-1">
                 <div className="flex items-baseline justify-between">
-                  <div className="text-4xl font-black text-indigo-600 dark:text-indigo-400">{results.matchScore}% Industrial ATS Match</div>
+                  <div className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 leading-tight">{results.matchScore}% Industrial ATS Match</div>
                 </div>
 
                 {/* Industrial Metrics Breakdown Grid */}
-                <div className="grid grid-cols-3 gap-3 py-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-2">
                   <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700 text-center">
                     <p className="text-[10px] uppercase font-bold text-gray-400">Formatting</p>
                     <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{results.formattingScore ?? 100}%</p>
